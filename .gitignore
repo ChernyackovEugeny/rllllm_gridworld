@@ -1,0 +1,99 @@
+# =========================
+# PYTHON
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# =========================
+# VIRTUAL ENVIRONMENTS
+# =========================
+venv/
+.env/
+.venv/
+env/
+ENV/
+
+# =========================
+# SECRETS
+# =========================
+.env
+*.env
+.env.*
+*.pem
+*.key
+
+# =========================
+# PYTORCH / MODELS
+# =========================
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.engine
+checkpoints/
+models/
+weights/
+
+# =========================
+# STABLE-BASELINES3
+# =========================
+logs/
+runs/
+best_model/
+clean_logs/
+tensorboard/
+sb3_logs/
+monitor.csv
+
+# =========================
+# WANDB
+# =========================
+wandb/
+
+# =========================
+# JUPYTER
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# DATASETS
+# =========================
+data/
+datasets/
+*.hdf5
+*.npz
+*.npy
+
+# =========================
+# TEST / COVERAGE
+# =========================
+.pytest_cache/
+.coverage
+htmlcov/
+
+# =========================
+# IDE
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# DOCKER
+# =========================
+docker-compose.override.yml

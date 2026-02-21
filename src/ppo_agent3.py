@@ -1,4 +1,4 @@
-#PPO8-gridworld_final-size5/PPO11-newreward_600k-size5
+#PPO9-600k-size10/PPO10-1m-size10/PPO12-new_reward-600k-size-5/
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
@@ -8,7 +8,7 @@ from stable_baselines3.common.monitor import Monitor
 from environment import GridWorldEnv
 
 def make_env():
-    env = GridWorldEnv(render_mode=None, size=5, num_bombs=3)
+    env = GridWorldEnv(render_mode=None, size=10, num_bombs=10)
     env = Monitor(env)
     return env
 
@@ -26,7 +26,7 @@ model = PPO(
 )
 
 eval_env = Monitor(
-    GridWorldEnv(render_mode=None, size=5, num_bombs=3)
+    GridWorldEnv(render_mode=None, size=10, num_bombs=10)
 )
 eval_callback = EvalCallback(
     eval_env,
@@ -39,6 +39,6 @@ eval_callback = EvalCallback(
 )
 
 print("Начинаем обучение...")
-model.learn(total_timesteps=600000, callback=eval_callback)
+model.learn(total_timesteps=600_000, callback=eval_callback)
 
-model.save('./models/ppo_base_newreward_5size_600k.t.s.')
+model.save('./models/ppo_base_newreward_10size_600k.t.s.')

@@ -4,8 +4,8 @@ import pygame
 import time
 
 # Создаем среду
-env = GridWorldEnv(render_mode='human', size=5, num_bombs=3)
-model = PPO.load('./models/ppo_base_newreward_5size_600k.t.s', env=env)
+env = GridWorldEnv(render_mode='human', size=10, num_bombs=10)
+model = PPO.load('./models/ppo_base_10size_600k.t.s.', env=env)
 # model = PPO.load('./best_model/best_model.zip', env=env)
 
 obs, info = env.reset()

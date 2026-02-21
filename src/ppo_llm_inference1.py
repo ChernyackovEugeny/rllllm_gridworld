@@ -3,9 +3,11 @@ from environment import GridWorldEnv
 import pygame
 import time
 
+from wrappers import LLMExplorerWrapper
+
 # Создаем среду
-env = GridWorldEnv(render_mode='human', size=5, num_bombs=3)
-model = PPO.load('./models/ppo_base_newreward_5size_600k.t.s', env=env)
+env = LLMExplorerWrapper(GridWorldEnv(render_mode='human', size=5, num_bombs=3))
+model = PPO.load('./models/ppo_llm_test', env=env)
 # model = PPO.load('./best_model/best_model.zip', env=env)
 
 obs, info = env.reset()

@@ -63,11 +63,25 @@ class Places(Enum):
 class GridWorldEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    def __init__(self, render_mode=None, num_bombs=5, max_steps=200, observation_size=5, size=5):
+    def __init__(self, render_mode=None, num_bombs=5, observation_size=5, size=5):
         self.size = size  # The size of the square grid
         self.window_size = 512  # The size of the PyGame window
-        self.max_steps = max_steps
+        self.max_steps = size * size * 2
         self.current_step = 0
+
+        # --- НОВАЯ ЛОГИКА НАГРАДЫ ---
+        # Коэффициент, определяющий, какая часть награды за цель уйдет на штрафы за шаги.
+        # 0.9 означает, что если агент потратит ВСЕ шаги, он получит 10% от награды за цель.
+        # Если дойдет быстро - получит почти 100%.
+        reward_scale_factor = 0.9
+
+        # Штраф за шаг = (Награда за цель * коэффициент) / Лимит шагов
+        # Пример: (1.0 * 0.9) / 200 = -0.0045
+        self._step_penalty = - (1.0 * reward_scale_factor) / self.max_steps
+
+        # Штраф за столкновение со стеной можно оставить фиксированным или тоже масштабировать.
+        # Лучше сделать его сравнимым с парой шагов, чтобы агент не бился об стену вместо того, чтобы идти.
+        self._wall_penalty = self._step_penalty * 5  # Например, равен штрафу за 5 шагов
 
         assert observation_size % 2 == 1
         self.observation_size = observation_size
@@ -192,11 +206,11 @@ class GridWorldEnv(gym.Env):
 
         terminated = False
         truncated = False
-        reward = -0.01  # базовый штраф за шаг
+        reward = self._step_penalty  # базовый штраф за шаг
 
         # --- Проверка границ ---
         if not (0 <= new_pos[0] < self.size and 0 <= new_pos[1] < self.size):
-            reward = -0.1  # штраф за попытку выйти за границу
+            reward += self._wall_penalty  # штраф за попытку выйти за границу
         else:
             # обновляем позицию агента
             self._agent_location = new_pos
@@ -227,6 +241,37 @@ class GridWorldEnv(gym.Env):
         info = self._get_info()
 
         return observation, reward, terminated, truncated, info
+
+    # Внутри класса GridWorldEnv
+
+    def _set_custom_state(self, agent_loc, target_loc, bombs_locs):
+        """
+        Устанавливает конкретную конфигурацию среды.
+        agent_loc: [row, col]
+        target_loc: [row, col]
+        bombs_locs: [[row, col], [row, col], ...]
+        """
+        self.current_step = 0
+
+        self._agent_location = np.array(agent_loc, dtype=np.int32)
+        self._target_location = np.array(target_loc, dtype=np.int32)
+        self._bombs_location = np.array(bombs_locs, dtype=np.int32)
+
+        # Перегенерируем сетку с новыми данными
+        self.grid = self._generate_grid()
+
+        # Если нужно, проверяем проходимость (опционально)
+        # if not bfs(self._agent_location, self.grid):
+        #     print("Warning: Target is unreachable!")
+
+        # Обновляем наблюдение
+        observation = self._get_obs()
+        info = self._get_info()
+
+        if self.render_mode == "human":
+            self._render_frame()
+
+        return observation, info
 
     def render(self):
         if self.render_mode == "rgb_array":
