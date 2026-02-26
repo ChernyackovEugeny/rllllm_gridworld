@@ -1,6 +1,7 @@
 import torch
 from stable_baselines3 import PPO
-from environment import GridWorldEnv
+from src.environment.environment import GridWorldEnv
+from src.ppo_llmhint.wrappers import LLMExplorerWrapper
 import pygame
 import time
 
@@ -39,8 +40,8 @@ def wait_for_key(env):
 # --- Основной код ---
 
 # Создаем среду
-env = GridWorldEnv(render_mode='human', size=10, num_bombs=10)
-model = PPO.load('./models/ppo_base_newreward_10size_600k.t.s.', env=env)
+env = LLMExplorerWrapper(GridWorldEnv(render_mode='human', size=5, num_bombs=3))
+model = PPO.load('./models/ppo_llm_test', env=env)
 
 obs, info = env.reset()
 done = False

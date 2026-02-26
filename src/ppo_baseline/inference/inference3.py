@@ -1,7 +1,6 @@
 import torch as th
-import numpy as np
 from stable_baselines3 import PPO
-from environment import GridWorldEnv
+from src.environment.environment import GridWorldEnv
 import pygame
 import time
 import os

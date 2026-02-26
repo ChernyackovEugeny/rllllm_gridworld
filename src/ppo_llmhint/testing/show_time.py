@@ -1,9 +1,8 @@
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.monitor import Monitor
 
-from environment import GridWorldEnv
+from src.environment.environment import GridWorldEnv
 from wrappers import LLMExplorerWrapper
 
 import cProfile
