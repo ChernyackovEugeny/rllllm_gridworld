@@ -149,7 +149,6 @@ class HighLevelPlannerWrapper(gym.Wrapper):
             if obj_type in ['TARGET', 'DANGER', 'WALL']:
                 self.known_world[coord] = obj_type
             elif obj_type == 'EMPTY':
-                # ВАЖНО: Для BFS нам нужно знать, где проходимо
                 self.known_world[coord] = 'SAFE'
 
         self.known_world[agent_pos] = 'VISITED'

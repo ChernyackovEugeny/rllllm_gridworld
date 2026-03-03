@@ -36,6 +36,8 @@ class DeepSeekPlanner:
                         )
 
         try:
+            print(prompt)
+            print(strategy)
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=[
@@ -71,7 +73,7 @@ class DeepSeekPlanner:
     def _build_exploration_prompt(self, agent_pos, local_view, known_world):
         # Преобразуем словарь known_world в читаемую строку
         # Фильтруем, чтобы не передавать пустые клетки, если они там есть
-        world_summary = [f"{coord}: {typ}" for coord, typ in known_world.items() if typ != 'EMPTY']
+        world_summary = [f"{coord}: {typ}" for coord, typ in known_world.items() if typ != 'SAFE']
 
         return (
             f"Current Position: {agent_pos}\n"

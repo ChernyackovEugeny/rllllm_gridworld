@@ -63,7 +63,7 @@ PROMPT_STRATEGIES = {
 }
 
 def make_env(strategy):
-    env = GridWorldEnv(size=5, num_bombs=3)
+    env = GridWorldEnv(size=10, num_bombs=10)
     env = HighLevelPlannerWrapper(env, strategy)
     return env
 
@@ -120,6 +120,7 @@ def run_pilot_test(pilot_n=20):
         episode_data = {'seed': seed}
         # Прогоняем все стратегии на одном seed
         for strategy_name in PROMPT_STRATEGIES.keys():
+            print(seed, pilot_n, strategy_name)
             metrics = run_episode(strategy_name, seed)
             episode_data[f"{strategy_name}_success"] = int(metrics['success'])
             episode_data[f"{strategy_name}_steps"] = metrics['total_steps']
@@ -195,6 +196,7 @@ def run_full_test(final_n):
 
         episode_data = {'seed': seed}
         for strategy_name in PROMPT_STRATEGIES.keys():
+            print(seed, final_n, strategy_name)
             metrics = run_episode(strategy_name, seed)
             episode_data[f"{strategy_name}_success"] = int(metrics['success'])
             episode_data[f"{strategy_name}_steps"] = metrics['total_steps']
@@ -219,13 +221,15 @@ def analyze_and_rank_results(df):
     for strat in strategies:
         success_rate = df[f"{strat}_success"].mean()
         avg_steps = df[f"{strat}_steps"].mean()
-        avg_tokens = df[f"{strat}_output_tokens"].mean()
+        avg_output_tokens = df[f"{strat}_output_tokens"].mean()
+        avg_input_tokens = df[f"{strat}_input_tokens"].mean()
 
         leaderboard_data.append({
             "Strategy": strat,
             "Success Rate": f"{success_rate:.2%}",
             "Avg Steps": f"{avg_steps:.1f}",
-            "Avg Tokens": f"{avg_tokens:.1f}",
+            "Avg Output Tokens": f"{avg_output_tokens:.1f}",
+            "Avg Input Tokens": f"{avg_input_tokens:.1f}",
             "Raw_Success": success_rate  # для сортировки
         })
 

@@ -87,9 +87,9 @@ def run_inference(env, scenario):
 
         print(f"\nStep {step} | Pos: {tuple(env.unwrapped._agent_location)}")
 
-        # if not wait_for_key(env):
-        #     print("Skipping scenario...")
-        #     break
+        if not wait_for_key(env):
+            print("Skipping scenario...")
+            break
 
         # Шаг среды (действие заглушка)
         obs, reward, terminated, truncated, info = env.step(0)
@@ -109,7 +109,7 @@ def run_agents():
     # Цикл тестирования
     for scenario in SCENARIOS:
         # Создаем свежий wrapper для каждого сценария
-        env = CodeGeneratorWrapper(base_env, skills_path='../skills/skills.json')
+        env = CodeGeneratorWrapper(base_env)
         run_inference(env, scenario)
 
     base_env.close()
