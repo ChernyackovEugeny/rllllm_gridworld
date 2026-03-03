@@ -130,7 +130,7 @@ class GridWorldEnv(gym.Env):
         self.window = None
         self.clock = None
 
-    def reset(self, seed=None):
+    def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.current_step = 0
 

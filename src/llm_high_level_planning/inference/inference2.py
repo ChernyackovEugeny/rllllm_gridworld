@@ -52,6 +52,7 @@ while not done:
     done = terminated or truncated
     total_reward += reward
 
+env.render()
 print(f"\nFinished. Total Reward: {total_reward}")
 
 running = True

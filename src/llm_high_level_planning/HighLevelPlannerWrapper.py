@@ -5,7 +5,7 @@ from src.environment.environment import Places, Actions
 from src.llm_high_level_planning.DeepSeekPlanner import DeepSeekPlanner
 
 class HighLevelPlannerWrapper(gym.Wrapper):
-    def __init__(self, env, plan_frequency=10):
+    def __init__(self, env, strategy=None, plan_frequency=10):
         super().__init__(env)
 
         # Инициализация LLM
@@ -17,8 +17,9 @@ class HighLevelPlannerWrapper(gym.Wrapper):
         self.current_path = []  # Очередь действий
         self.steps_since_plan = 0
 
-        # Счетчики
-        self.total_calls = 0
+        self.llm_calls = 0
+
+        self.strategy = strategy
 
         # Память карты
         self.known_world = {}
@@ -35,7 +36,7 @@ class HighLevelPlannerWrapper(gym.Wrapper):
         self.steps_since_plan = 0
 
         # Сразу добавляем стартовую позицию в память
-        start_pos = tuple(self.env.unwrapped._agent_location)
+        start_pos = tuple(map(int, self.env.unwrapped._agent_location))
         self.known_world[start_pos] = 'VISITED'
 
         # Обновляем память тем, что видно на старте
@@ -44,12 +45,26 @@ class HighLevelPlannerWrapper(gym.Wrapper):
         return obs, info
 
     def step(self, action):
-        # --- 1. ОБНОВЛЕНИЕ ПАМЯТИ ---
+        # --- ОБНОВЛЕНИЕ ПАМЯТИ ---
         # Сначала смотрим, что вокруг, прежде чем принимать решение
         self._update_memory()
-        agent_pos = tuple(self.env.unwrapped._agent_location)
+        agent_pos = tuple(map(int, self.env.unwrapped._agent_location))
 
-        # --- 2. ПРИНЯТИЕ РЕШЕНИЯ (LLM + BFS) ---
+        # --- ПРОВЕРКА БЕЗОПАСНОСТИ ---
+        # Если у нас есть путь, проверяем, не ведет ли первый шаг в опасность
+        if self.current_path:
+            next_action = self.current_path[0]
+
+            # Вычисляем координаты следующего шага
+            # _action_to_direction обычно возвращает массив/кортеж (dx, dy)
+            direction = self.env.unwrapped._action_to_direction[next_action]
+            next_pos = (agent_pos[0] + direction[0], agent_pos[1] + direction[1])
+
+            # Если следующий шаг — известная опасность, СБРАСЫВАЕМ путь
+            if self.known_world.get(next_pos) in ['DANGER', 'WALL']:
+                self.current_path = []
+
+        # --- ПРИНЯТИЕ РЕШЕНИЯ ---
 
         # Условия для запроса НОВОЙ цели к LLM:
         # - Нет цели
@@ -69,24 +84,41 @@ class HighLevelPlannerWrapper(gym.Wrapper):
             need_new_plan = True
             self.current_goal = None
 
+        # --- ПРИНЯТИЕ РЕШЕНИЯ ---
+        # (Этот блок полностью заменяет твой if need_new_plan: ...)
+
         if need_new_plan:
             self.steps_since_plan = 0
-            self.total_calls += 1
 
-            # Запрос к LLM
-            llm_goal = self.planner.get_next_goal(agent_pos, self.known_world, len(self.known_world))
+            # 1. Сначала ищем цель (Target) в памяти
+            llm_goal = self._find_target_in_dict(self.known_world)
 
-            if llm_goal:
-                self.current_goal = llm_goal
-                # Строим маршрут локально (BFS)
-                self.current_path = self._calculate_path_to_goal(agent_pos, llm_goal)
-                print(f"[Planner] New goal: {llm_goal}, path len: {len(self.current_path)}")
-            else:
-                # Fallback логика
-                self.current_goal = self._get_random_frontier(agent_pos)
-                # Если фронт найден, путь строится внутри _get_random_frontier или тут:
-                if self.current_goal:
-                    self.current_path = self._calculate_path_to_goal(agent_pos, self.current_goal)
+            # 2. Если цель не найдена зрением, пробуем перестроить путь к ТЕКУЩЕЙ цели (обход препятствия)
+            # Это сэкономит вызов LLM, если мы просто уперлись в бомбу
+            if not llm_goal and self.current_goal and self._is_goal_valid():
+                new_path = self._calculate_path_to_goal(agent_pos, self.current_goal)
+                if new_path:
+                    self.current_path = new_path
+                    print(f"[Planner] Rerouting to existing goal: {self.current_goal}")
+
+            # 3. Если цели нет или путь не построен (тупик) — спрашиваем LLM
+            if not self.current_path:
+                if not llm_goal:
+                    local_view_str, _ = self._get_local_view_description()
+                    llm_goal = self.planner.get_next_goal(agent_pos, local_view_str, self.known_world,
+                                                          strategy=self.strategy)
+                    self.llm_calls += 1
+
+                if llm_goal:
+                    self.current_goal = llm_goal
+                    self.current_path = self._calculate_path_to_goal(agent_pos, llm_goal)
+                    print(f"[Planner] New goal: {llm_goal}, path len: {len(self.current_path)}")
+
+                # Fallback если LLM не вернул цель
+                if not self.current_path:
+                    self.current_goal = self._get_random_frontier(agent_pos)
+                    if self.current_goal:
+                        self.current_path = self._calculate_path_to_goal(agent_pos, self.current_goal)
 
         # --- 3. ВЫБОР ДЕЙСТВИЯ ---
         if self.current_path:
@@ -102,10 +134,16 @@ class HighLevelPlannerWrapper(gym.Wrapper):
 
     # --- ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ---
 
+    def _find_target_in_dict(self, known_world):
+        for coord, typ in known_world.items():
+            if typ == 'TARGET':
+                return coord
+        return None
+
     def _update_memory(self):
         """Обновляет known_world на основе текущего обзора."""
         _, current_view_objects = self._get_local_view_description()
-        agent_pos = tuple(self.env.unwrapped._agent_location)
+        agent_pos = tuple(map(int, self.env.unwrapped._agent_location))
 
         for coord, obj_type in current_view_objects.items():
             if obj_type in ['TARGET', 'DANGER', 'WALL']:
@@ -127,6 +165,8 @@ class HighLevelPlannerWrapper(gym.Wrapper):
         queue = deque([start_pos])
         visited = {start_pos: None}
 
+        map_size = self.env.unwrapped.size
+
         while queue:
             curr = queue.popleft()
 
@@ -145,6 +185,10 @@ class HighLevelPlannerWrapper(gym.Wrapper):
             for action, direction in self.env.unwrapped._action_to_direction.items():
                 nx, ny = curr[0] + direction[0], curr[1] + direction[1]
                 neighbor = (nx, ny)
+
+                # Сначала проверяем, что сосед внутри карты!
+                if not (0 <= nx < map_size and 0 <= ny < map_size):
+                    continue  # Если вышли за границы — пропускаем
 
                 cell_type = self.known_world.get(neighbor)
                 # Идем только по безопасному или неизвестному
@@ -183,7 +227,7 @@ class HighLevelPlannerWrapper(gym.Wrapper):
     def _get_local_view_description(self):
         """Парсит обзор для LLM и памяти."""
         env = self.env.unwrapped
-        agent_x, agent_y = env._agent_location
+        agent_x, agent_y = map(int, env._agent_location)
         interesting_objects = []
         objects_dict = {}
 

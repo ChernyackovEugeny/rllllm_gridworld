@@ -17,27 +17,25 @@ MODEL_NAME = 'deepseek-chat'
 
 # 1. Стратегии промптинга для High-Level Planner
 PROMPT_STRATEGIES = {
-    "v2_base": {
+    # "v2_base": {
+    #     "system": (
+    #         "You are a strategic exploration AI. "
+    #         "Your task is to choose a coordinate (x, y) to explore next. "
+    #         "Return ONLY a JSON object with 'target_coordinate' as [x, y]. "
+    #         "Prioritize unexplored areas. "
+    #         "Avoid coordinates marked as BOMB or WALL. "
+    #         "If TARGET is known, return its coordinate."
+    #     ),
+    #     "description": "Базовая стратегия для выбора подцели"
+    # },
+    "base": {
         "system": (
             "You are a strategic exploration AI. "
             "Your task is to choose a coordinate (x, y) to explore next. "
             "Return ONLY a JSON object with 'target_coordinate' as [x, y]. "
-            "Prioritize unexplored areas. "
-            "Avoid coordinates marked as BOMB or WALL. "
-            "If TARGET is known, return its coordinate."
+            "Prioritize unexplored areas."
         ),
-        "description": "Базовая стратегия для выбора подцели"
-    },
-    "v2_frontier_focus": {
-        "system": (
-            "You are a strategic navigation AI. "
-            "Analyze the 'Known Obstacles' and 'Current Position'. "
-            "1. If TARGET is known, go to it. "
-            "2. Otherwise, identify 'Frontier Cells' (cells adjacent to known safe areas but unexplored). "
-            "3. Select the closest Frontier Cell that is not blocked by obstacles. "
-            "Return JSON: {'target_coordinate': [x, y]}."
-        ),
-        "description": "Акцент на границах исследования (Frontier-based)"
+        "description": "супер базовая"
     }
 }
 
@@ -45,98 +43,203 @@ PROMPT_STRATEGIES = {
 # expected_valid_coords: Список координат, которые считаются "хорошим ответом".
 # Если модель вернет что-то другое (но тоже валидное), это можно анализировать вручную.
 TEST_SCENARIOS = [
-    # --- СЦЕНАРИИ ИССЛЕДОВАНИЯ (Target Unknown) ---
+    # ==========================================
+    # КАТЕГОРИЯ 1: БАЗОВОЕ ИССЛЕДОВАНИЕ (Navigation)
+    # ==========================================
     {
-        "id": 1, "name": "Start Exploration (Center)",
-        "agent_pos": (5, 5),
-        "known_obstacles": [],  # Нет препятствий
-        "known_world_state": "Empty grid 10x10, visited only (5,5)",
-        "expected_valid_coords": [(4, 5), (6, 5), (5, 4), (5, 6)],  # Любой сосед
-        "comment": "Модель должна предложить любую соседнюю клетку для начала исследования."
-    },
-    {
-        "id": 2, "name": "Wall Avoidance (North)",
-        "agent_pos": (1, 5),
-        "known_obstacles": [(0, 5)],  # Стена сверху (x=0)
-        "known_world_state": "Wall to the North.",
-        "expected_valid_coords": [(1, 4), (1, 6), (2, 5)],  # Не идти вверх
-        "comment": "Не предлагать (0,5) или (-1,5)."
-    },
-    {
-        "id": 3, "name": "Bomb Avoidance (East)",
-        "agent_pos": (5, 5),
-        "known_obstacles": [(5, 6)],  # Бомба справа
-        "known_world_state": "Bomb at (5,6).",
-        "expected_valid_coords": [(4, 5), (6, 5), (5, 4)],
-        "comment": "Избегать координаты бомбы."
-    },
-    {
-        "id": 4, "name": "Corner Trap",
-        "agent_pos": (0, 0),
-        "known_obstacles": [(0, 1), (1, 0)],  # Заблокирован справа и снизу
-        "known_world_state": "Walls to the right and down.",
-        "expected_valid_coords": [],  # Некуда идти (тупик)
-        "comment": "Модель должна предложить что-то, даже если это тупик, или выдать ошибку. В идеале - не в стены."
-    },
-    {
-        "id": 5, "name": "Frontier Selection",
-        "agent_pos": (3, 3),
-        "known_obstacles": [(2, 3), (3, 2), (4, 3)],  # Блокировка сверху, слева, снизу
-        "known_world_state": "Only way is Right (3,4).",
-        "expected_valid_coords": [(3, 4)],
-        "comment": "Единственный путь развития - вправо."
-    },
-
-    # --- СЦЕНАРИИ ДОСТИЖЕНИЯ ЦЕЛИ (Target Known) ---
-    # Важный момент: Python-код планировщика сам перехватывает цель.
-    # Но здесь мы тестируем именно ПРОМПТ, спросим модель, что бы она выбрала, если бы не знала, что это цель (проверка логики).
-    # Или укажем цель в описании.
-    {
-        "id": 6, "name": "Target Nearby (Direct Move)",
+        "id": 1, "name": "Basic Expansion (Center Start)",
         "agent_pos": (5, 5),
         "known_obstacles": [],
-        "target_known_at": (5, 6),
-        "known_world_state": "Target is at (5,6).",
-        "expected_valid_coords": [(5, 6)],
-        "comment": "Если цель известна, модель должна указать на неё."
+        "known_visited": [(5, 5)],
+        "target_known_at": None,
+        "comment": "Должен выбрать любую соседнюю клетку для старта. 49282",
+        "expected_valid_coords": [(4, 5), (6, 5), (5, 4), (5, 6)]
     },
     {
-        "id": 7, "name": "Target Blocked (Bypass Logic)",
+        "id": 2, "name": "Avoiding Local Wall",
+        "agent_pos": (1, 5),
+        "known_obstacles": [(0, 5)], # Стена сверху
+        "known_visited": [(1, 5), (2, 5)], # Пришел снизу
+        "target_known_at": None,
+        "comment": "Не идти вверх. Идти влево, вправо или вниз.",
+        "expected_valid_coords": [(1, 4), (1, 6), (2, 5)]
+    },
+    {
+        "id": 3, "name": "Simple Bomb Bypass",
         "agent_pos": (5, 5),
-        "known_obstacles": [(5, 6)],  # Прямой путь заблокирован
-        "target_known_at": (5, 7),  # Цель за бомбой
-        "known_world_state": "Target (5,7), Bomb at (5,6). Need detour.",
-        "expected_valid_coords": [(4, 6), (6, 6)],  # Попытка обойти сверху или снизу
-        "comment": "Модель не должна предлагать (5,6). Должна предложить обходной путь."
+        "known_obstacles": [(5, 6)], # Бомба справа
+        "known_visited": [(5, 5)],
+        "target_known_at": None,
+        "comment": "Не идти вправо. Выбрать любой другой путь.",
+        "expected_valid_coords": [(4, 5), (6, 5), (5, 4)]
     },
     {
-        "id": 8, "name": "Long Distance Target",
+        "id": 4, "name": "Corner Deadlock",
         "agent_pos": (0, 0),
-        "known_obstacles": [(0, 1)],  # Стена справа
-        "target_known_at": (9, 9),
-        "known_world_state": "Target far away. Wall to the right.",
-        "expected_valid_coords": [(1, 0)],  # Идти вниз, так как справа стена
-        "comment": "Стратегическое движение в сторону цели, обходя препятствие."
+        "known_obstacles": [(0, 1), (1, 0)], # Стены справа и снизу
+        "known_visited": [(0, 0)],
+        "target_known_at": None,
+        "comment": "Тупик. Модель может растеряться, но не должна предлагать стены.",
+        "expected_valid_coords": [] # Сложный кейс: нет валидных путей, ожидается fallback или ошибка
+    },
+    {
+        "id": 5, "name": "Narrow Corridor",
+        "agent_pos": (5, 2),
+        "known_obstacles": [(4, 2), (6, 2), (5, 1), (5, 3)], # Туннель 1x1, открыт только вверх/вниз? Нет, туннель по Y.
+        # Исправим: стены слева (4,2) и справа (6,2). Путь впереди (5,3) свободен? Или назад?
+        # Давай сделаем стены слева/справа/сзади.
+        "known_obstacles": [(4, 2), (6, 2), (5, 1)],
+        "known_visited": [(5, 1), (5, 2)],
+        "target_known_at": None,
+        "comment": "Единственный путь - вперед по коридору.",
+        "expected_valid_coords": [(5, 3)]
     },
 
-    # --- СЛОЖНЫЕ СЦЕНАРИИ ---
+    # ==========================================
+    # КАТЕГОРИЯ 2: СТРАТЕГИЯ ИССЛЕДОВАНИЯ (Frontier Logic)
+    # ==========================================
     {
-        "id": 9, "name": "Zig-Zag Start",
+        "id": 6, "name": "Closest Frontier Priority",
         "agent_pos": (5, 5),
-        "known_obstacles": [(4, 5), (5, 4), (6, 5)],  # Сверху, слева, снизу
+        "known_visited": [(5, 5), (5, 4), (5, 3)], # Пришел слева
+        "known_obstacles": [(5, 6)], # Справа стена
         "target_known_at": None,
-        "known_world_state": "Corridor to the right.",
-        "expected_valid_coords": [(5, 6)],
-        "comment": "Единственное направление - вправо."
+        "comment": "Слева исследовано. Справа стена. Лучший выбор - вверх или вниз (ближайшие границы).",
+        "expected_valid_coords": [(4, 5), (6, 5)]
     },
     {
-        "id": 10, "name": "Dead End Escape",
-        "agent_pos": (2, 2),
-        "known_obstacles": [(1, 2), (2, 3), (3, 2), (2, 1)],  # Полное окружение
+        "id": 7, "name": "Avoiding Backtracking",
+        "agent_pos": (5, 5),
+        "known_visited": [(5, 5), (5, 4), (6, 4), (4, 4)], # Большой посещенный остров слева
+        "known_obstacles": [],
         "target_known_at": None,
-        "known_world_state": "Completely surrounded.",
-        "expected_valid_coords": [],  # Идеально - вернуться (но памяти нет). Модель в растерянности.
-        "comment": "Проверка поведения в тупике."
+        "comment": "Не идти влево (посещено). Идти вправо (неизвестно).",
+        "expected_valid_coords": [(5, 6)]
+    },
+    {
+        "id": 8, "name": "Large Unexplored Area Bias",
+        "agent_pos": (2, 5),
+        "known_visited": [(0, 5), (1, 5), (2, 5)], # Пришел сверху
+        "known_obstacles": [(2, 6)], # Справа стена
+        "target_known_at": None,
+        "comment": "Снизу огромная неисследованная область. Модель должна выбрать DOWN.",
+        "expected_valid_coords": [(3, 5)]
+    },
+    {
+        "id": 9, "name": "Maze Entrance Decision",
+        "agent_pos": (1, 0),
+        "known_visited": [(0, 0), (1, 0)],
+        "known_obstacles": [(0, 1), (1, 1)], # Вход в лабиринт заблокирован?
+        "target_known_at": None,
+        "comment": "Идти вниз (2,0), так как справа стены.",
+        "expected_valid_coords": [(2, 0)]
+    },
+    {
+        "id": 10, "name": "The Pivot Point",
+        "agent_pos": (5, 5),
+        "known_visited": [(5, 5), (5, 6), (5, 7)], # Пошел вправо, уперся в...
+        "known_obstacles": [(5, 8)], # ...стену
+        "target_known_at": None,
+        "comment": "Идти вправо нельзя. Нужно разворачиваться (влево) или обходить (вверх/вниз).",
+        "expected_valid_coords": [(5, 4), (4, 5), (6, 5)]
+    },
+
+    # ==========================================
+    # КАТЕГОРИЯ 3: ЦЕЛЕВОЕ НАПРАВЛЕНИЕ (Target Known)
+    # ==========================================
+    {
+        "id": 11, "name": "Direct Target Approach",
+        "agent_pos": (5, 5),
+        "known_visited": [(5, 5)],
+        "known_obstacles": [],
+        "target_known_at": (5, 6), # Цель справа
+        "comment": "Цель известна и доступна. Идти прямо к ней.",
+        "expected_valid_coords": [(5, 6)]
+    },
+    {
+        "id": 12, "name": "Target Blocked by Wall (Simple Bypass)",
+        "agent_pos": (5, 5),
+        "known_visited": [(5, 5)],
+        "known_obstacles": [(5, 6)], # Стена преграждает путь
+        "target_known_at": (5, 7), # Цель за стеной
+        "comment": "Нельзя идти прямо. Нужно обойти сверху или снизу.",
+        "expected_valid_coords": [(4, 6), (6, 6)] # Координаты обхода
+    },
+    {
+        "id": 13, "name": "Target Blocked by Bomb (Risk Assessment)",
+        "agent_pos": (5, 5),
+        "known_visited": [(5, 5)],
+        "known_obstacles": [(5, 6)], # Бомба преграждает путь
+        "target_known_at": (5, 7),
+        "comment": "Аналогично стене, но строже. Обход.",
+        "expected_valid_coords": [(4, 6), (6, 6)]
+    },
+    {
+        "id": 14, "name": "Long Distance Strategic Move",
+        "agent_pos": (0, 0),
+        "known_visited": [(0, 0)],
+        "known_obstacles": [(0, 1)], # Стена справа
+        "target_known_at": (9, 9), # Цель далеко вниз-вправо
+        "comment": "Идти вниз (DOWN), так как вправо нельзя.",
+        "expected_valid_coords": [(1, 0)]
+    },
+    {
+        "id": 15, "name": "Target vs Unexplored Conflict",
+        "agent_pos": (5, 5),
+        "known_visited": [(5, 5)],
+        "known_obstacles": [],
+        "target_known_at": (0, 0), # Цель сзади
+        "comment": "Цель важнее исследования. Идти назад/вверх.",
+        "expected_valid_coords": [(4, 5), (5, 4)] # Движение к (0,0)
+    },
+
+    # ==========================================
+    # КАТЕГОРИЯ 4: ПРОДВИНУТЫЕ ТАКТИКИ (Tactics)
+    # ==========================================
+    {
+        "id": 16, "name": "Diagonal Blockade",
+        "agent_pos": (5, 5),
+        "known_visited": [(5, 5)],
+        "known_obstacles": [(4, 5), (5, 4)], # Блок сверху и слева
+        "target_known_at": (2, 2), # Цель вверху слева
+        "comment": "Прямой путь перекрыт. Нужен сложный маневр (вниз или вправо для захода с тыла).",
+        "expected_valid_coords": [(6, 5), (5, 6)] # Выход из зоны
+    },
+    {
+        "id": 17, "name": "U-Turn Necessity",
+        "agent_pos": (5, 8), # В конце туннеля
+        "known_visited": [(5, 5), (5, 6), (5, 7), (5, 8)],
+        "known_obstacles": [(5, 9), (4, 8), (6, 8)], # Тупик
+        "target_known_at": None,
+        "comment": "Единственный выход - вернуться назад.",
+        "expected_valid_coords": [(5, 7)]
+    },
+    {
+        "id": 18, "name": "Island Hopping (Risky Path)",
+        "agent_pos": (5, 5),
+        "known_visited": [(5, 5)],
+        "known_obstacles": [(4, 5), (6, 5), (5, 4)], # Окружен стенами, только один проход
+        "target_known_at": (8, 5), # Цель далеко вправо
+        "comment": "Единственный путь - через единственный проход.",
+        "expected_valid_coords": [(5, 6)]
+    },
+    {
+        "id": 19, "name": "Optimal Frontier Angle",
+        "agent_pos": (5, 5),
+        "known_visited": [(5, 5), (5, 6), (6, 5), (6, 6)], # Посещен квадрат справа-снизу
+        "known_obstacles": [],
+        "target_known_at": None,
+        "comment": "Исследовано справа и снизу. Остались слева и сверху. Выбрать ближайшее.",
+        "expected_valid_coords": [(4, 5), (5, 4)]
+    },
+    {
+        "id": 20, "name": "Trap Awareness",
+        "agent_pos": (1, 1),
+        "known_visited": [(0, 1), (1, 0), (1, 1)], # Вход в комнату
+        "known_obstacles": [(0, 0), (0, 2), (1, 2)], # Стены формируют ловушку
+        "target_known_at": None,
+        "comment": "Идти вниз (2,1), чтобы не застрять в углу.",
+        "expected_valid_coords": [(2, 1)]
     }
 ]
 

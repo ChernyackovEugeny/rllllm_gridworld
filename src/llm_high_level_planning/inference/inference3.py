@@ -91,9 +91,9 @@ def run_inference(env, scenario):
         if env.current_goal:
             print(f"LLM Plan: Goal {env.current_goal}, Steps left in cache: {len(env.current_path)}")
 
-        if not wait_for_key(env):
-            print("Skipping scenario...")
-            break
+        # if not wait_for_key(env):
+        #     print("Skipping scenario...")
+        #     break
 
         # Шаг среды (действие заглушка)
         obs, reward, terminated, truncated, info = env.step(0)
@@ -103,8 +103,8 @@ def run_inference(env, scenario):
 
         if done:
             print(f"Result: {'WIN' if reward > 0 else 'FAIL'}. Reward: {total_reward}")
+            env.render()
             time.sleep(1)
-
 
 def run_agents():
     # Инициализация
