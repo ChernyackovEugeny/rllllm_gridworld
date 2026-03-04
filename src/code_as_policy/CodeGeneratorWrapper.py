@@ -11,16 +11,21 @@ class CodeGeneratorWrapper(gym.Wrapper):
 
         self.executor = CodeExecutor(env)
         self.generator = CodeGenerator()
-        self.skill_manager = SkillManager(skills_path=skills_path)
+        self.skill_manager = SkillManager(step_penalty=env.unwrapped._step_penalty, skills_path=skills_path)
 
         self.known_world = {}
         self.strategy = strategy
         self.max_fix_retries = max_fix_retries
 
+        self.used_skills_path = []  # сохраняем айдишники использованных скилов
+
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
 
         self.known_world = {}
+
+        self.used_skills_path = {}  # dict, key = skill_id, values = {'usage_count': ..., 'total_reward': ...,
+        # 'mean_reward': ..., 'success_count': ..., 'success_rate': ..., 'skill_score': ...}
 
         # Сразу добавляем стартовую позицию в память
         start_pos = tuple(map(int, self.env.unwrapped._agent_location))
@@ -52,7 +57,10 @@ class CodeGeneratorWrapper(gym.Wrapper):
         source = "None"
 
         # --- ПОПЫТКА 1: Использовать Навык ---
-        skill_code = self.skill_manager.get_relevant_skill_code(situation_summary)
+        # dict, key = skill_id, values = {'usage_count': ..., 'total_reward': ...,
+        # 'mean_reward': ..., 'success_count': ..., 'success_rate': ..., 'skill_score': ...}
+
+        skill_code, skill_id = self.skill_manager.get_relevant_skill_code(situation_summary)
         if skill_code:
             llm_action, error = self.executor.execute_llm_code(skill_code, self.known_world, agent_pos)
 
@@ -65,7 +73,9 @@ class CodeGeneratorWrapper(gym.Wrapper):
 
             # Если навык сработал, идем дальше
             if not error:
-                return self.env.step(llm_action)
+                obs, reward, terminated, truncated, info = self.env.step(llm_action)
+                self.skill_manager.update_skill_data(skill_id, reward)
+                return obs, reward, terminated, truncated, info
             else:
                 print("⚠️ Retrieved skill failed, falling back to generation...")
 
@@ -92,15 +102,18 @@ class CodeGeneratorWrapper(gym.Wrapper):
             print('fallback')  # !!!!!!!!!!!!!!!!!!!!!!!
             llm_action = Actions.UP.value
 
-        # --- ЭКОНОМИЯ И ОБУЧЕНИЕ: Если сгенерированный код сработал, сохраняем его ---
-        if source == "New Generation" and not error:
-            self.skill_manager.critique_and_save(code_used)
-
         if not isinstance(llm_action, int):
             print("Invalid action, fallback")
             llm_action = Actions.UP.value
+            return self.env.step(llm_action)
 
-        return self.env.step(llm_action)
+        obs, reward, terminated, truncated, info = self.env.step(llm_action)
+
+        # --- ЭКОНОМИЯ И ОБУЧЕНИЕ: Если сгенерированный код сработал, сохраняем его ---
+        if source == "New Generation" and not error:
+            self.skill_manager.critique_and_save(code_used, reward)
+
+        return obs, reward, terminated, truncated, info
 
     def _update_memory(self):
         """Обновляет known_world на основе текущего обзора."""
