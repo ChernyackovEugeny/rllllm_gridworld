@@ -55,6 +55,11 @@ class CodeGeneratorWrapper(gym.Wrapper):
         skill_code = self.skill_manager.get_relevant_skill_code(situation_summary)
         if skill_code:
             llm_action, error = self.executor.execute_llm_code(skill_code, self.known_world, agent_pos)
+
+            if llm_action is None:
+                # Это значит go_to вернул None (путь заблокирован) или LLM вернул ерунду
+                error = "Error: go_to() failed or returned None. Path might be blocked or target unreachable."
+
             code_used = skill_code
             source = "Skill Library"
 
@@ -65,8 +70,13 @@ class CodeGeneratorWrapper(gym.Wrapper):
                 print("⚠️ Retrieved skill failed, falling back to generation...")
 
         # --- ПОПЫТКА 2: Генерация нового кода (если навыка нет или он упал) ---
+        print('pikpik')
         code_data = self.generator.get_code(agent_pos, self.known_world, self.strategy, map_string)
         llm_action, error = self.executor.execute_llm_code(code_data, self.known_world, agent_pos)
+
+        if llm_action is None:
+            # Это значит go_to вернул None (путь заблокирован) или LLM вернул ерунду
+            error = "Error: go_to() failed or returned None. Path might be blocked or target unreachable."
 
         retries = 0
         while error and retries < self.max_fix_retries:

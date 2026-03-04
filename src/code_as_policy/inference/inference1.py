@@ -3,7 +3,7 @@ from src.code_as_policy.CodeGeneratorWrapper import CodeGeneratorWrapper
 import pygame
 import time
 
-base_env = GridWorldEnv(render_mode='human', size=5, num_bombs=3)
+base_env = GridWorldEnv(render_mode='human', size=10, num_bombs=10)
 env = CodeGeneratorWrapper(base_env, skills_path='../skills/skills.json')
 
 obs, info = env.reset()

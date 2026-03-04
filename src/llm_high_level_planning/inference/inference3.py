@@ -2,6 +2,13 @@ from src.environment.environment import GridWorldEnv
 from src.code_as_policy.CodeGeneratorWrapper import CodeGeneratorWrapper
 import pygame
 import time
+import os
+
+# --- ГЛАВНОЕ ИСПРАВЛЕНИЕ ---
+# Получаем абсолютный путь к папке, где лежит ЭТОТ скрипт
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Строим абсолютный путь к skills.json (в папке skills, которая рядом с inference)
+SKILLS_PATH = os.path.join(CURRENT_DIR, '..', 'skills', 'skills.json')
 
 # --- Конфигурация сценариев ---
 SCENARIOS = [
@@ -105,11 +112,12 @@ def run_inference(env, scenario):
 def run_agents():
     # Инициализация
     base_env = GridWorldEnv(render_mode='human', size=GRID_SIZE, num_bombs=NUM_BOMBS)
+    print(f"Skills will be loaded/saved to: {os.path.abspath(SKILLS_PATH)}")
 
     # Цикл тестирования
     for scenario in SCENARIOS:
         # Создаем свежий wrapper для каждого сценария
-        env = CodeGeneratorWrapper(base_env, skills_path='../skills/skills.json')
+        env = CodeGeneratorWrapper(base_env, skills_path=SKILLS_PATH)
         run_inference(env, scenario)
 
     base_env.close()

@@ -23,18 +23,28 @@ class CodeGenerator():
         prompt = self._build_prompt(agent_pos, known_world, map_string)
 
         strategy = strategy or (
-            "You are a Python navigator AI.\n"
-            "Goal: Reach the target 'T'. Avoid bombs 'B' and walls '#'.\n"
-            "Available functions: move_up(), move_down(), move_left(), move_right().\n"
-            "Available variables: `known_world` (dict), `agent_pos` (tuple).\n\n"
+            "You are a navigation AI. Your goal is to reach the Target 'T'.\n"
+            "You have access to the current map state and high-level movement functions.\n\n"
             
-            "RULES:\n"
-            "1. DO NOT oscillate (move back and forth) if stuck.\n"
-            "2. If the direct path to target is blocked by a wall, try to move SIDEWAYS to go around it.\n"
-            "3. If target is above but blocked, do NOT just move down. Try moving left or right to find an opening.\n"
-            "4. Prioritize moves that decrease distance to target, but avoid walls.\n\n"
+            "AVAILABLE VARIABLES:\n"
+            "1. `agent_pos` (tuple): Your current (x, y) coordinates.\n"
+            "2. `known_world` (dict): A dictionary mapping (x, y) coordinates to cell types.\n"
+            "   Possible types: 'TARGET', 'DANGER', 'WALL', 'VISITED', 'SAFE'.\n"
+            "   Example: `known_world.get((2, 3)) == 'TARGET'`.\n\n"
             
-            "Return ONLY the python function `decide_action()`."
+            "AVAILABLE FUNCTIONS:\n"
+            "1. `go_to(coords)`: Returns the action (int) to move one step towards coords.\n"
+            "   - `coords` must be a tuple (x, y).\n"
+            "   - Returns None if the path is blocked.\n"
+            "2. `get_nearest_unknown()`: Returns coordinates (x, y) of the nearest unexplored cell.\n\n"
+            
+            "STRATEGY RULES:\n"
+            "1. Analyze `known_world` to find the 'TARGET' coordinates.\n"
+            "2. If TARGET found: call `go_to(target_coords)`.\n"
+            "3. If TARGET not found or path blocked: call `go_to(get_nearest_unknown())`.\n"
+            "4. Return the result of the function call directly.\n\n"
+            
+            "Write ONLY the python function `decide_action()`."
         )
 
         try:
@@ -81,14 +91,14 @@ class CodeGenerator():
         )
 
         strategy = (
-            "You are a coding AI. Fix all the errors in code\n"
-            "Available functions: move_up(), move_down(), move_left(), move_right().\n"
-            "Available variables: `known_world` (dict), `agent_pos` (tuple).\n\n"
+            "You are a coding AI. Fix all the errors in code.\n"
+            "AVAILABLE VARIABLES: `known_world` (dict), `agent_pos` (tuple).\n"
+            "AVAILABLE FUNCTIONS: `go_to(coords)`, `get_nearest_unknown()`.\n\n"
             "Task: Fix the errors.\n"
             "Return ONLY the full function code. Do not explain.\n"
             "Example format:\n"
             "def decide_action():\n"
-            "\treturn move_right()"
+            "\treturn go_to((1, 2))"
         )
 
         try:
@@ -126,7 +136,7 @@ class CodeGenerator():
 
     def _build_prompt(self, agent_pos, known_world, map_string=None):
         # Преобразуем словарь known_world в читаемую строку
-        world_summary = [f"{coord}: {typ}" for coord, typ in known_world.items() if typ != 'SAFE']
+        # world_summary = [f"{coord}: {typ}" for coord, typ in known_world.items() if typ != 'SAFE']
 
         # Добавляем карту в промпт, если она есть
         map_context = f"Map Visualization:\n{map_string}" if map_string else ""
@@ -134,6 +144,6 @@ class CodeGenerator():
         return (
             f"Current Position: {agent_pos}\n"
             f"{map_context}\n"
-            f"Explored Map Summary: {json.dumps(world_summary)}\n"
+            # f"Explored Map Summary: {json.dumps(world_summary)}\n"
             "Write a python function decide_action()."
         )

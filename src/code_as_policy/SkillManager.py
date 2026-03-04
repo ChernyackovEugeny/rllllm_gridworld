@@ -36,11 +36,21 @@ class SkillManager():
     def critique_and_save(self, code_string):
         """Если код выполнился успешно, просим LLM описать его и сохраняем."""
 
+        # Проверка на ПОЛНЫЕ ДУБЛИКАТЫ
+        # Если код 1-в-1 такой же, не сохраняем.
+        for skill in self.skills:
+            if skill['code'].strip() == code_string.strip():
+                # Просто инкрементируем счетчик, как будто он использовался
+                skill['usage_count'] = skill.get('usage_count', 0) + 1
+                self._save_skills()
+                return
+
         print("🧠 Analysing successful code for library...")
 
         prompt = (
-            "Analyze this Python function and describe its logic in ONE sentence (max 50 words).\n"
-            "Focus on the strategy (e.g., 'Moves right along the wall' or 'Avoids danger').\n"
+            "Summarize this Python function in ONE short sentence (max 15 words).\n"
+            "Focus on the logic pattern (e.g., 'Navigates to target or explores').\n"
+            "Do not mention specific coordinates.\n"
             f"Code:\n{code_string}"
         )
 
@@ -51,7 +61,7 @@ class SkillManager():
                     {"role": "system", "content": "You are an expert coder summarizing logic."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.2,
+                temperature=0.1,
                 max_tokens=100
             )
             description = response.choices[0].message.content.strip().strip('"')
@@ -59,7 +69,7 @@ class SkillManager():
             new_skill = {
                 "description": description,
                 "code": code_string,
-                "usage_count": 0
+                "usage_count": 1
             }
 
             self.skills.append(new_skill)
@@ -77,10 +87,14 @@ class SkillManager():
         if not self.skills:
             return None
 
+        # Навыки, которые часто использовались, проверены боем. Они выше.
+        sorted_skills = sorted(self.skills, key=lambda x: x.get('usage_count', 0), reverse=True)
+
         # Формируем список описаний для LLM
         skills_list = []
-        for i, skill in enumerate(self.skills):
-            skills_list.append(f"{i}: {skill['description']}")
+        for i, skill in enumerate(sorted_skills):
+            count = skill.get('usage_count', 0)
+            skills_list.append(f"{i}: {skill['description']} (Used {count} times)")
 
         skills_text = "\n".join(skills_list)
 
@@ -89,8 +103,9 @@ class SkillManager():
             f"{situation_summary}\n\n"
             "Here is a list of available skills (index: description):\n"
             f"{skills_text}\n\n"
-            "If ONE of these skills is perfectly suitable for the current situation, "
-            "respond ONLY with the INDEX number (e.g., '2'). "
+            "If ONE of these skills is suitable for the current situation.\n"
+            "Prefer generic navigation skills over specific ones.\n"
+            "Respond ONLY with the INDEX number (e.g., '2'). "
             "If NONE are suitable, respond with '-1'."
             "Do not explain."
         )
@@ -99,10 +114,10 @@ class SkillManager():
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=[
-                    {"role": "system", "content": "You are a skill selector AI."},
+                    {"role": "system", "content": "You are a skill selector. You prefer reliable, frequently used skills."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.1,
+                temperature=0,
                 max_tokens=10
             )
 
@@ -116,6 +131,8 @@ class SkillManager():
                     self._save_skills()
                     print(f"📚 Reusing skill: [{skill['description']}]")
                     return skill['code']
+            else:
+                print(choice)  # !!!!!!!!!!!!!!!!!!!!
 
             return None
 
