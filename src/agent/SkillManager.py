@@ -10,7 +10,7 @@ load_dotenv()
 
 class SkillManager():
     def __init__(self, step_penalty, max_skills=50, steps_between_garbage_collection=50,
-                 k_relevant_skills=30, garbage_similarity_threshold=0.8, retrieval_similarity_threshold=0.8,
+                 k_relevant_skills=30, garbage_similarity_threshold=0.8, retrieval_similarity_threshold=0.6,
                  skills_path='skills.json'):
         self.client = OpenAI(
             api_key=os.getenv('DEEPSEEK_API_KEY'),
@@ -161,54 +161,27 @@ class SkillManager():
         if not self.skills:
             return None, None
 
-        # Формируем список описаний для LLM
-        skills_text_list = []
-        for i, skill in enumerate(self.skills):
-            count = skill.get('usage_count', 0)
-            skills_text_list.append(f"{i}: {skill['description']} (Used {count} times)")
+        # Создаем эмбеддинг для текущей ситуации
+        situation_embedding = self.embedding_model.encode(situation_summary)
 
-        skills_text = "\n".join(skills_text_list)
+        best_skill = None
+        best_score = -1.0
 
-        prompt = (
-            "Current Situation:\n"
-            f"{situation_summary}\n\n"
-            "Here is a list of available skills (index: description):\n"
-            f"{skills_text}\n\n"
-            "If ONE of these skills is suitable for the current situation.\n"
-            "Prefer generic navigation skills over specific ones.\n"
-            "Respond ONLY with the INDEX number (e.g., '2'). "
-            "If NONE are suitable, respond with '-1'."
-            "Do not explain."
-        )
+        for skill in self.skills:
+            skill_emb = np.array(skill['description_embedding'])
+            score = self.cosine_similarity(situation_embedding, skill_emb)
+            score *= skill.get('success_rate', 0.5)
 
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=[
-                    {"role": "system", "content": "You are a skill selector. You prefer reliable, frequently used skills."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0,
-                max_tokens=10
-            )
+            if score > best_score:
+                best_score = score
+                best_skill = skill
 
-            choice = response.choices[0].message.content.strip()
+        if best_skill and best_score >= self.retrieval_similarity_threshold:
+            print(f"📚 Vector Retrieval: Found skill [{best_skill['description']}] (Score: {best_score:.2f})")
+            return best_skill['code'], best_skill['id']
 
-            if choice.isdigit():
-                index = int(choice)
-                if 0 <= index < len(self.skills):
-                    skill = self.skills[index]
-                    self._save_skills()
-                    print(f"📚 Reusing skill: [{skill['description']}]")
-                    return skill['code'], skill['id']
-            else:
-                print(choice)  # !!!!!!!!!!!!!!!!!!!!
-
-            return None, None
-
-        except Exception as e:
-            print(f"⚠️ Retrieval error: {e}")
-            return None, None
+        print("📚 Vector Retrieval: No relevant skill found.")
+        return None, None
 
     def update_skill_data(self, skill_id, reward):
         skill = None
