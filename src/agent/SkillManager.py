@@ -10,7 +10,7 @@ load_dotenv()
 
 class SkillManager():
     def __init__(self, step_penalty, max_skills=50, steps_between_garbage_collection=50,
-                 k_relevant_skills=30, garbage_similarity_threshold=0.8, retrieval_similarity_threshold=0.6,
+                 k_relevant_skills=30, garbage_similarity_threshold=0.8, retrieval_similarity_threshold=0.3,
                  skills_path='skills.json'):
         self.client = OpenAI(
             api_key=os.getenv('DEEPSEEK_API_KEY'),
@@ -171,10 +171,12 @@ class SkillManager():
             skill_emb = np.array(skill['description_embedding'])
             score = self.cosine_similarity(situation_embedding, skill_emb)
             score *= skill.get('success_rate', 0.5)
+            print(skill['id'], score, best_score)
 
             if score > best_score:
                 best_score = score
                 best_skill = skill
+            print(skill['id'], score, best_score)
 
         if best_skill and best_score >= self.retrieval_similarity_threshold:
             print(f"📚 Vector Retrieval: Found skill [{best_skill['description']}] (Score: {best_score:.2f})")

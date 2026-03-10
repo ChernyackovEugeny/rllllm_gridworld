@@ -121,5 +121,5 @@ class CodeExecutor():
 
         except Exception as e:
             print(f"CRASH! Code failed: {e}")
-            # VOYAGER MOMENT: Отправляем ошибку e обратно в LLM: "Fix this code..."
+            # Отправляем ошибку e обратно в LLM: "Fix this code..."
             return None, None, str(e)

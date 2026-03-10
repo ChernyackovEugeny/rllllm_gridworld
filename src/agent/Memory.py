@@ -19,7 +19,6 @@ class Memory:
                 self.known_world[coord] = obj_type
             elif obj_type == 'EMPTY':
                 # Если клетка неизвестна, помечаем как SAFE.
-                # Если уже известна (например, DANGER), лучше не менять (для надежности)
                 if coord not in self.known_world:
                     self.known_world[coord] = 'SAFE'
 

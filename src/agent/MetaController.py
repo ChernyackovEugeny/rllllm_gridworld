@@ -23,7 +23,7 @@ class MetaController:
         map_string = context['map_string']
         agent_pos = context['agent_pos']
 
-        # 1. Формируем промпт для поиска навыка
+        # Формируем промпт для поиска навыка
         situation_summary = (
             f"Current Map (A=Agent, T=Target, B=Bomb, V=Visited, .=Unknown):\n{map_string}\n"
             f"Current Position: {agent_pos}"
@@ -56,6 +56,7 @@ class MetaController:
 
         # выбираем скил
         # --- ПОПЫТКА 1: Использовать существующий навык ---
+        print('Trying to get existing skill...')
         skill_code, skill_id = self.skill_manager.get_relevant_skill_code(situation_summary)
 
         if skill_code:
@@ -74,7 +75,7 @@ class MetaController:
                 print("⚠️ Retrieved skill failed, falling back to generation...")
 
         # --- ПОПЫТКА 2: Генерация нового кода ---
-        print('🧠 Generating new code...')
+        print('Generating new code...')
 
         # Генерируем код
         code_data = self.planner.get_code(agent_pos, known_world, self.strategy, map_string)

@@ -4,7 +4,7 @@ import pygame
 import time
 
 # 1. Создаем базовую среду
-base_env = GridWorldEnv(render_mode='human', size=10, num_bombs=10)
+base_env = GridWorldEnv(render_mode='human', size=5, num_bombs=3)
 
 # 2. Оборачиваем в LLM планировщика
 # plan_frequency=10 означает, что LLM будет думать каждые 10 шагов

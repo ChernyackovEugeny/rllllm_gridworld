@@ -56,10 +56,10 @@ class CodeGeneratorWrapper(gym.Wrapper):
 
         action, code_used, source, skill_id = self.meta_controller.decide_action(context)
 
-        # 4. Исполнение действия в среде
+        # Исполнение действия в среде
         obs, reward, terminated, truncated, info = self.env.step(action)
 
-        # 5. Обучение (Learn)
+        # Обучение (Learn)
         self.meta_controller.learn(
             source=source,
             code_used=code_used,

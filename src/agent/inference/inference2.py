@@ -3,7 +3,7 @@ import pygame
 import time
 import gymnasium as gym
 from src.environment.environment import GridWorldEnv
-from src.code_as_policy.CodeGeneratorWrapper import CodeGeneratorWrapper
+from src.agent.CodeGeneratorWrapper import CodeGeneratorWrapper
 
 # --- Конфигурация сценариев ---
 # Координаты: [row, col] (0,0 - верхний левый угол)
@@ -63,27 +63,23 @@ def run_scenario(env, scenario_config):
     print(f"DESC: {scenario_config['description']}")
     print(f"{'=' * 60}")
 
-    # 1. Сбрасываем среду и обертку
-    # reset() инициализирует known_world и память
+    # Сбрасываем среду и обертку
     obs, info = env.reset()
 
-    # 2. Устанавливаем кастомное состояние
-    # Важно: делаем это после reset, чтобы очистить старую память
+    # Устанавливаем кастомное состояние
     env.unwrapped._set_custom_state(
         agent_loc=scenario_config['agent'],
         target_loc=scenario_config['target'],
         bombs_locs=scenario_config['bombs']
     )
 
-    # 3. ВАЖНЫЙ МОМЕНТ: Сброс памяти обертки
-    # Так как мы изменили состояние среды "через голову" обертки,
+    # Сброс памяти обертки
     # нужно вручную обновить её память, чтобы LLM не видел "призраков" прошлой карты.
-    env.known_world = {}
+    agent_pos = env.perception.get_agent_position(env.unwrapped)
+    env.memory.reset(agent_pos)
+    obs = env.perception.get_local_observations(env.unwrapped)
     # Принудительно сканируем стартовую позицию
-    env._update_memory()
-
-    # Обновляем obs, т.к. он устарел после _set_custom_state
-    obs = env.unwrapped._get_obs()
+    env.memory.update(obs, agent_pos)
 
     done = False
     total_reward = 0
@@ -110,7 +106,7 @@ def run_scenario(env, scenario_config):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return False  # Сигнал остановить всё
-
+    env.render()
     print(f"\nRESULT: {'WIN 🏆' if terminated and reward > 0 else 'FAIL 💥'}")
     print(f"Total Reward: {total_reward:.2f} | Steps: {step}")
 
@@ -130,16 +126,17 @@ def main():
 
     running = True
     for scenario in SCENARIOS:
+        base_env = GridWorldEnv(
+            render_mode='human',
+            size=scenario['grid_size'],
+            num_bombs=20
+        )
+        env = CodeGeneratorWrapper(base_env, skills_path=SKILLS_PATH)
+        running = run_scenario(env, scenario)
+        env.close()
+
         if not running:
             break
-
-        # Обновляем размер среды под сценарий (если он меняется)
-        if env.unwrapped.size != scenario['grid_size']:
-            env.unwrapped.size = scenario['grid_size']
-            env.unwrapped.max_steps = scenario['grid_size'] ** 2 * 2
-            env.unwrapped.window_size = 512  # Можно оставить фиксированным
-
-        running = run_scenario(env, scenario)
 
     env.close()
     print("\nAll scenarios completed.")
