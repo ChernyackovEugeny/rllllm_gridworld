@@ -9,12 +9,13 @@ from src.ppo_llmhint_conv_distilation.ml_model.ExplorerCNN import ExplorerCNN
 
 # --- 2. Fast Wrapper ---
 class FastLLMHintWrapper(gym.ObservationWrapper):
-    def __init__(self, env, map_size=5):
+    def __init__(self, env, map_size=5, cnn_model_path=None):
         super().__init__(env)
 
         self.device = "cpu"
         self.model = ExplorerCNN(map_size=map_size).to(self.device)
-        self.model.load_state_dict(torch.load(f"../ml_model/student_cnn_{map_size}size.pth", map_location=self.device))
+        path = cnn_model_path or f"../ml_model/student_cnn_{map_size}size.pth"
+        self.model.load_state_dict(torch.load(path, map_location=self.device))
         self.model.eval()
 
         # Память карты

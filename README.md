@@ -2,6 +2,42 @@
 
 Research project comparing RL and LLM-based agents on a Gymnasium grid-world navigation task. The agent must reach a target while avoiding bombs, across grid sizes from 5×5 to 10×10. Five agent architectures are implemented and benchmarked.
 
+---
+
+## Benchmark
+
+Evaluation across 100 episodes (PPO agents) and 20 episodes (LLM agents). Bombs: 3 on 5×5, 10 on 10×10.
+
+### 5×5 Grid
+
+| Agent | Success Rate | Mean Reward | Mean Steps | Bomb Hit Rate |
+|---|---|---|---|---|
+| PPO Baseline | 90% | 0.678 | 10.7 | 0% |
+| PPO + CNN Distillation | 84% | 0.652 | 11.3 | 0% |
+| LLM Code-Gen | **100%** | **0.939** | **4.4** | 0% |
+| LLM Planner | 85% | 0.682 | 10.2 | 0% |
+
+![5x5 results](src/evaluation/plots/results_5x5.png)
+
+### 10×10 Grid
+
+| Agent | Success Rate | Mean Reward | Mean Steps | Bomb Hit Rate |
+|---|---|---|---|---|
+| PPO Baseline | 5% | -0.883 | 137.9 | 27% |
+| PPO + CNN Distillation | 38% | -0.235 | 124.9 | 1% |
+| LLM Code-Gen | **100%** | **0.944** | **13.6** | 0% |
+| LLM Planner | 60% | 0.229 | 83.2 | 0% |
+
+![10x10 results](src/evaluation/plots/results_10x10.png)
+
+To reproduce:
+
+```bash
+python src/evaluation/evaluate_all_agents.py
+```
+
+---
+
 ## Setup
 
 ```bash
@@ -135,3 +171,4 @@ python src/ppo_llmhint_conv_distilation/train/ppo_llmhint_train_5size.py
 # 10×10 grid, 1.2M PPO steps
 python src/ppo_llmhint_conv_distilation/train/ppo_llmhint_train_10size.py
 ```
+
