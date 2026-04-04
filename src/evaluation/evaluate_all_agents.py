@@ -29,8 +29,8 @@ from src.ppo_llmhint_conv_distilation.FastLLMHintWrapper import FastLLMHintWrapp
 # ---------------------------------------------------------------------------
 MODELS = {
     "PPO Baseline": {
-        5:  "src/models/ppo_base_newreward_5size_600k.t.s",
-        10: "src/models/ppo_base_newreward_10size_600k.t.s..zip",
+        5:  "src/models/ppo_size5",
+        10: "src/models/ppo_size10",
     },
     "PPO+CNN Distil": {
         5:  "src/models/ppo_llmhint_student_600k_5size.zip",
@@ -78,7 +78,7 @@ def run_ppo_episodes(model, env, n_episodes):
             "episode": ep,
             "total_reward": total_reward,
             "steps": steps,
-            "success": int(terminated and total_reward > 0.5),
+            "success": int(terminated and total_reward > 0),
             "bomb_hit": int(terminated and total_reward < 0),
         })
         print(f"  ep {ep+1}/{n_episodes}  reward={total_reward:.3f}  steps={steps}  "
@@ -104,7 +104,7 @@ def run_wrapper_episodes(wrapper, n_episodes):
             "episode": ep,
             "total_reward": total_reward,
             "steps": steps,
-            "success": int(terminated and total_reward > 0.5),
+            "success": int(terminated and total_reward > 0),
             "bomb_hit": int(terminated and total_reward < 0),
         })
         print(f"  ep {ep+1}/{n_episodes}  reward={total_reward:.3f}  steps={steps}  "

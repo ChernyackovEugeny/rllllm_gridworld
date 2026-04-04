@@ -1,5 +1,6 @@
 #PPO20_600k_10size/PPO21_1200k_10size
 
+from pathlib import Path
 from src.environment.environment import GridWorldEnv
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
@@ -7,6 +8,8 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.callbacks import EvalCallback
 
 from src.ppo_llmhint_conv_distilation.FastLLMHintWrapper import FastLLMHintWrapper
+
+_ROOT = Path(__file__).parent.parent.parent.parent  # project root
 
 def make_env():
     env = GridWorldEnv(render_mode=None, size=10, num_bombs=10)
@@ -23,7 +26,7 @@ model = PPO(
     n_steps=2048,
     batch_size=64,
     gamma=0.99,
-    tensorboard_log="../../logs/"
+    tensorboard_log=str(_ROOT / "logs")
 )
 
 eval_env = Monitor(
@@ -31,8 +34,8 @@ eval_env = Monitor(
 )
 eval_callback = EvalCallback(
     eval_env,
-    best_model_save_path='../../best_model/',
-    log_path='../../logs/',
+    best_model_save_path=str(_ROOT / "best_model"),
+    log_path=str(_ROOT / "logs"),
     eval_freq=5000,
     n_eval_episodes=10,
     deterministic=True,
@@ -41,4 +44,4 @@ eval_callback = EvalCallback(
 
 print("Начинаем обучение PPO со Студентом...")
 model.learn(total_timesteps=1_200_000)
-model.save('../../models/ppo_llmhint_student_1200k_10size')
+model.save(str(_ROOT / "models" / "ppo_llmhint_student_1200k_10size"))

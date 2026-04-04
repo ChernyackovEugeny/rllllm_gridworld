@@ -3,9 +3,12 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from pathlib import Path
 
 from src.environment.environment import Places
 from src.ppo_llmhint_conv_distilation.ml_model.ExplorerCNN import ExplorerCNN
+
+_DIR = Path(__file__).parent
 
 # --- 2. Fast Wrapper ---
 class FastLLMHintWrapper(gym.ObservationWrapper):
@@ -14,8 +17,10 @@ class FastLLMHintWrapper(gym.ObservationWrapper):
 
         self.device = "cpu"
         self.model = ExplorerCNN(map_size=map_size).to(self.device)
-        path = cnn_model_path or f"../ml_model/student_cnn_{map_size}size.pth"
-        self.model.load_state_dict(torch.load(path, map_location=self.device))
+        path = Path(cnn_model_path) if cnn_model_path else _DIR / "ml_model" / f"student_cnn_{map_size}size.pth"
+        if not path.exists():
+            raise FileNotFoundError(f"CNN model not found: {path}")
+        self.model.load_state_dict(torch.load(str(path), map_location=self.device))
         self.model.eval()
 
         # Память карты

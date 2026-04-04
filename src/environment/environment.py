@@ -92,13 +92,13 @@ class GridWorldEnv(gym.Env):
             'agent_position': spaces.Box(
                 low=0, high=self.size-1,
                 shape=(2,),
-                dtype=np.int32
+                dtype=np.float32
             ),
             'agent_observations': spaces.Box(
                 low=0,
                 high=self.cell_type_count-1,
                 shape=(observation_size, observation_size),
-                dtype=np.int32
+                dtype=np.float32
             )
         })
 

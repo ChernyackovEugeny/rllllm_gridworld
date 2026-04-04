@@ -97,3 +97,15 @@ Thumbs.db
 # DOCKER
 # =========================
 docker-compose.override.yml
+
+*.csv
+CLAUDE.md
+*.json
+
+searxng/
+
+COLAB_RECURRENT_PPO.md
+monitor.py
+PIPELINE.md
+benchmark_vecenv.py
+best_models
