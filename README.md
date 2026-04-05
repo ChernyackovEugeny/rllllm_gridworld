@@ -62,7 +62,7 @@ Evaluation: 100 episodes for RL agents, 20 episodes for LLM agents. Bombs: 3 on 
 
 ![10x10 results](src/evaluation/plots/results_10x10.png)
 
-To reproduce:
+To reproduce, train all RL baselines first (see [Agents](#agents) below), then run:
 
 ```bash
 python src/evaluation/evaluate_all_agents.py
@@ -194,7 +194,27 @@ python src/ppo_llmhint/inference/ppo_llm_inference1.2.py
 
 A two-stage pipeline: an LLM teacher generates `(state, action)` pairs offline; a CNN student (`ExplorerCNN`) is trained on those pairs via supervised learning; the trained CNN then provides hints to the PPO policy during training. No LLM is required at runtime.
 
-**Training**
+**Step 1 — Data generation**
+
+`HighLevelPlannerWrapper` (BFS + DeepSeek) acts as the expert. Each episode it navigates the grid; the script records `(state_tensor, action)` pairs from successful episodes (truncated episodes are discarded). The state tensor has 5 channels: `[agent, wall, bomb, target, visited/safe]`.
+
+```bash
+# Edit MAP_SIZE and N_EPISODES at the top of the script, then run:
+python src/ppo_llmhint_conv_distilation/data/data_generation.py
+```
+
+Datasets are saved to `src/ppo_llmhint_conv_distilation/data/dataset_{N}size.pt`. Default: 500 episodes, 50 steps/episode cap.
+
+**Step 2 — CNN training**
+
+`ExplorerCNN` (two conv layers + two FC layers) is trained on the dataset via cross-entropy loss.
+
+```bash
+# trains student_cnn_{N}size.pth
+python src/ppo_llmhint_conv_distilation/ml_model/train.py
+```
+
+**Step 3 — PPO training with CNN hints**
 
 ```bash
 # 5×5 grid, 600k PPO steps
