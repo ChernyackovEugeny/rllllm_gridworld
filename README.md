@@ -1,6 +1,30 @@
 # rlllm_gridworld
 
-Research project comparing RL and LLM-based agents on a Gymnasium grid-world navigation task. The agent must reach a target while avoiding bombs, across grid sizes from 5×5 to 10×10. Eight agent architectures are implemented and benchmarked.
+Research project comparing RL and LLM-based agents on a custom Gymnasium grid-world navigation task. Eight agent architectures — from pure RL baselines to LLM-driven planners — are implemented and benchmarked on grids from 5×5 to 10×10.
+
+## Environment
+
+An `N×N` grid is randomly generated each episode. The agent starts at a random cell and must reach a target while avoiding bombs. The target and bomb positions change every reset, so no map memorization is possible.
+
+**Observation space** — `Dict`:
+- `agent_position`: `Box(2,)` — absolute `(row, col)` coordinates
+- `agent_observations`: `Box(5×5)` — local patch centered on the agent (cell types: empty, wall, bomb, target, agent)
+
+The 5×5 window covers only ~4% of a 10×10 grid, making this a **partial-observation** problem. The agent has no direct knowledge of where the target or bombs are outside its immediate vicinity.
+
+**Action space** — `Discrete(4)`: LEFT, RIGHT, UP, DOWN.
+
+**Reward structure**:
+| Event | Reward |
+|---|---|
+| Reach target | +1.0 |
+| Hit a bomb | -1.0 (episode ends) |
+| Step penalty | `-0.9 / max_steps` |
+| Walk into wall | `5 × step_penalty` |
+
+The meaningful rewards (+1 / -1) are sparse — they only trigger at episode termination. The step penalty is scaled so that exhausting all `max_steps = 2×N²` steps costs a total of −0.9, preserving reward scale across grid sizes. This makes the task a **sparse-reward + partial-observation** challenge: pure RL agents struggle to generalize beyond small grids, motivating the LLM-augmented approaches.
+
+Solvability is guaranteed on every reset via BFS — if bombs block all paths to the target, new bomb positions are resampled.
 
 ---
 
