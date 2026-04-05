@@ -50,8 +50,7 @@ class LLMExplorerWrapper(gym.ObservationWrapper):
         # 2. Обновляем глобальную память (Summarizer)
         # Добавляем увиденное в known_world
         for coord, obj_type in current_view_objects.items():
-            # Если мы видим цель или бомбу — перезаписываем (это важно)
-            # Если видим пустоту — можно не сохранять или помечать SAFE
+            # Если мы видим цель или бомбу — перезаписываем
             if obj_type in ['TARGET', 'DANGER', 'WALL']:
                 self.known_world[coord] = obj_type
 

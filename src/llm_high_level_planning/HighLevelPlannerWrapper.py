@@ -85,7 +85,6 @@ class HighLevelPlannerWrapper(gym.Wrapper):
             self.current_goal = None
 
         # --- ПРИНЯТИЕ РЕШЕНИЯ ---
-        # (Этот блок полностью заменяет твой if need_new_plan: ...)
 
         if need_new_plan:
             self.steps_since_plan = 0
@@ -105,8 +104,11 @@ class HighLevelPlannerWrapper(gym.Wrapper):
             if not self.current_path:
                 if not llm_goal:
                     local_view_str, _ = self._get_local_view_description()
-                    llm_goal = self.planner.get_next_goal(agent_pos, local_view_str, self.known_world,
-                                                          strategy=self.strategy)
+                    map_string = self._render_map(agent_pos)
+                    llm_goal = self.planner.get_next_goal(
+                        agent_pos, local_view_str, self.known_world,
+                        strategy=self.strategy, map_string=map_string
+                    )
                     self.llm_calls += 1
 
                 if llm_goal:
@@ -266,3 +268,35 @@ class HighLevelPlannerWrapper(gym.Wrapper):
             return "Open space around", objects_dict
 
         return ", ".join(interesting_objects), objects_dict
+
+    def _render_map(self, agent_pos):
+        """
+        ASCII-карта известного мира для передачи в LLM.
+        Символы: A=Agent, T=Target, B=Bomb/Danger, #=Wall, V=Visited/Safe, .=Unknown
+        """
+        size = self.env.unwrapped.size
+        grid = [['.' for _ in range(size)] for _ in range(size)]
+
+        for (x, y), cell_type in self.known_world.items():
+            if 0 <= x < size and 0 <= y < size:
+                if cell_type == 'WALL':
+                    grid[x][y] = '#'
+                elif cell_type == 'DANGER':
+                    grid[x][y] = 'B'
+                elif cell_type == 'TARGET':
+                    grid[x][y] = 'T'
+                elif cell_type in ['VISITED', 'SAFE']:
+                    grid[x][y] = 'V'
+
+        # Агент поверх всего
+        ax, ay = agent_pos
+        if 0 <= ax < size and 0 <= ay < size:
+            grid[ax][ay] = 'A'
+
+        # Добавляем номера колонок и строк для ориентации LLM
+        header = "  " + " ".join(str(j) for j in range(size))
+        rows = [header]
+        for i, row in enumerate(grid):
+            rows.append(f"{i} " + " ".join(row))
+
+        return "\n".join(rows)

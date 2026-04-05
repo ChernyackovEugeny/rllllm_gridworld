@@ -21,34 +21,41 @@ class DeepSeekPlanner:
         self.total_input_tokens = 0
         self.total_output_tokens = 0
 
-    def get_next_goal(self, agent_pos, local_view, known_world, strategy):
+    def get_next_goal(self, agent_pos, local_view, known_world, strategy, map_string=None):
         """
         Запрашивает у LLM следующую целевую точку.
         Возвращает tuple (x, y).
+
+        agent_pos:  tuple (x, y) — текущая позиция
+        local_view: str          — что видно прямо сейчас (радиус 2)
+        known_world: dict        — суммарная карта мира {(x,y): 'TYPE'}
+        map_string: str          — ASCII-карта известного мира
         """
-        prompt = self._build_exploration_prompt(agent_pos, local_view, known_world)
+        prompt = self._build_exploration_prompt(agent_pos, known_world, map_string)
 
         strategy = strategy or (
-                            "You are a strategic exploration AI. "
-                            "Your task is to choose a coordinate (x, y) to explore next. "
-                            "Return ONLY a JSON object with 'target_coordinate' as [x, y]. "
-                            "Prioritize unexplored areas."
-                        )
+            "You are a grid navigation AI. Goal: reach TARGET (T), avoid DANGER (B).\n\n"
+            "MAP LEGEND: A=Agent, T=Target, B=Bomb/Danger, #=Wall, V=Visited/Safe, .=Unknown\n"
+            "AXES: Row 0 is TOP. Coordinate (x, y) = (row, column). "
+            "x increases downward, y increases rightward.\n\n"
+            "RULES (strict priority order):\n"
+            "1. If T is visible on the map → return its exact coordinates immediately.\n"
+            "2. Pick an unexplored (.) cell on the frontier (adjacent to a V or A cell).\n"
+            "3. Among frontier cells, prefer the one with smallest Manhattan distance to A.\n"
+            "4. NEVER return a B or # cell.\n"
+            "5. NEVER return a V cell if any unexplored (.) cells remain.\n\n"
+            "Return ONLY JSON: {\"target_coordinate\": [x, y]}"
+        )
 
         try:
-            print(prompt)
-            print(strategy)
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=[
-                    {
-                        "role": "system",
-                        "content": strategy
-                    },
+                    {"role": "system", "content": strategy},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0,
-                max_tokens=2000,
+                max_tokens=200,
                 response_format={"type": "json_object"}
             )
 
@@ -70,14 +77,18 @@ class DeepSeekPlanner:
 
         return None
 
-    def _build_exploration_prompt(self, agent_pos, local_view, known_world):
-        # Преобразуем словарь known_world в читаемую строку
-        # Фильтруем, чтобы не передавать пустые клетки, если они там есть
-        world_summary = [f"{coord}: {typ}" for coord, typ in known_world.items() if typ != 'SAFE']
+    def _build_exploration_prompt(self, agent_pos, known_world, map_string=None):
+        if map_string:
+            return (
+                f"Current Position (A): {agent_pos}\n"
+                f"Map:\n{map_string}\n"
+                "Choose a coordinate to explore next."
+            )
 
+        # Fallback: список координат (если карта не передана)
+        world_summary = [f"{coord}: {typ}" for coord, typ in known_world.items() if typ != 'SAFE']
         return (
             f"Current Position: {agent_pos}\n"
-            f"Current Vision: {local_view}\n"
             f"Explored Map Summary: {json.dumps(world_summary)}\n"
             "Choose a coordinate to explore."
         )

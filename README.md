@@ -1,21 +1,25 @@
 # rlllm_gridworld
 
-Research project comparing RL and LLM-based agents on a Gymnasium grid-world navigation task. The agent must reach a target while avoiding bombs, across grid sizes from 5×5 to 10×10. Five agent architectures are implemented and benchmarked.
+Research project comparing RL and LLM-based agents on a Gymnasium grid-world navigation task. The agent must reach a target while avoiding bombs, across grid sizes from 5×5 to 10×10. Eight agent architectures are implemented and benchmarked.
 
 ---
 
 ## Benchmark
 
-Evaluation across 100 episodes (PPO agents) and 20 episodes (LLM agents). Bombs: 3 on 5×5, 10 on 10×10.
+Evaluation: 100 episodes for RL agents, 20 episodes for LLM agents. Bombs: 3 on 5×5, 10 on 10×10.
 
 ### 5×5 Grid
 
 | Agent | Success Rate | Mean Reward | Mean Steps | Bomb Hit Rate |
 |---|---|---|---|---|
-| PPO Baseline | 90% | 0.678 | 10.7 | 0% |
-| PPO + CNN Distillation | 84% | 0.652 | 11.3 | 0% |
-| LLM Code-Gen | **100%** | **0.939** | **4.4** | 0% |
-| LLM Planner | 85% | 0.682 | 10.2 | 0% |
+| Random | 22% | -0.945 | 13.7 | 73% |
+| PPO Baseline | 85% | 0.606 | 11.9 | 0% |
+| A2C | 10% | -0.713 | 44.2 | 2% |
+| DQN | 92% | 0.810 | 7.0 | 0% |
+| PPO + CNN Distillation | 88% | 0.724 | 9.6 | 0% |
+| BFS Oracle | **100%** | **0.954** | **3.6** | 0% |
+| LLM Code-Gen | **100%** | 0.947 | 4.0 | 0% |
+| LLM Planner | **100%** | 0.932 | 4.8 | 0% |
 
 ![5x5 results](src/evaluation/plots/results_5x5.png)
 
@@ -23,10 +27,14 @@ Evaluation across 100 episodes (PPO agents) and 20 episodes (LLM agents). Bombs:
 
 | Agent | Success Rate | Mean Reward | Mean Steps | Bomb Hit Rate |
 |---|---|---|---|---|
-| PPO Baseline | 5% | -0.883 | 137.9 | 27% |
-| PPO + CNN Distillation | 38% | -0.235 | 124.9 | 1% |
-| LLM Code-Gen | **100%** | **0.944** | **13.6** | 0% |
-| LLM Planner | 60% | 0.229 | 83.2 | 0% |
+| Random | 8% | -0.978 | 20.8 | 91% |
+| PPO Baseline | 2% | -0.870 | 182.3 | 7% |
+| A2C | 5% | -0.822 | 158.5 | 16% |
+| DQN | 19% | -0.856 | 162.9 | 0% |
+| PPO + CNN Distillation | 42% | -0.162 | 119.8 | 0% |
+| BFS Oracle | **100%** | **0.974** | **6.8** | 0% |
+| LLM Code-Gen | **100%** | 0.947 | 12.8 | 0% |
+| LLM Planner | 90% | 0.735 | 37.6 | 0% |
 
 ![10x10 results](src/evaluation/plots/results_10x10.png)
 

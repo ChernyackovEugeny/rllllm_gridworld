@@ -15,7 +15,7 @@ client = OpenAI(
 )
 MODEL_NAME = 'deepseek-chat'
 
-# 1. Определяем 4 стратегии промптинга
+# Определяем стратегии промптинга
 PROMPT_STRATEGIES = {
     "last_best": {
         "system": (
@@ -39,73 +39,73 @@ PROMPT_STRATEGIES = {
     ),
         "use_warnings": False,
         "use_reasoning": False
+    },
+    "new_new": {
+        "system": (
+            "You are an expert navigator AI for a grid.\n"
+            "AXIS DEFINITION: X is Vertical (UP/DOWN), Y is Horizontal (LEFT/RIGHT).\n"
+            "- UP decreases X (x-1). DOWN increases X (x+1).\n"
+            "- LEFT decreases Y (y-1). RIGHT increases Y (y+1).\n\n"
+    
+            "DECISION PROCESS:\n"
+            "1. MODE SELECTION:\n"
+            "   - IF TARGET in Known World -> Set 'Goal' to TARGET coords.\n"
+            "   - ELSE -> Set 'Goal' to 'Explore'.\n\n"
+    
+            "2. PATHFINDING LOGIC (If Goal is TARGET):\n"
+            "   - Calculate Delta: dx = Goal_x - Agent_x, dy = Goal_y - Agent_y.\n"
+            "   - Primary Moves (Priority order):\n"
+            "     * If |dx| > |dy|: Move Vertical (UP if dx<0, DOWN if dx>0).\n"
+            "     * If |dy| > |dx|: Move Horizontal (LEFT if dy<0, RIGHT if dy>0).\n"
+            "     * If |dx| == |dy|: Move Horizontal first.\n"
+            "   - SAFETY CHECK: If Primary Move leads to DANGER/WALL/INVALID:\n"
+            "     * Try Secondary Move (the other axis).\n"
+            "     * If blocked again, try remaining safe options.\n\n"
+    
+            "3. EXPLORATION LOGIC (If Goal is Explore):\n"
+            "   - Check neighbors. Prioritize UNEXPLORED (not in Known World).\n"
+            "   - Avoid VISITED cells if possible.\n\n"
+    
+            "4. GENERAL RULES:\n"
+            "   - NEVER move into DANGER or WALL.\n"
+            "   - NEVER move outside bounds (e.g., x=-1 is invalid).\n\n"
+    
+            "Return JSON: {'reasoning': 'step-by-step thought', 'action': 'MOVE'}."
+        ),
+        "use_warnings": False,
+        "use_reasoning": False
+    },
+    "new": {
+        "system": (
+            "You are an expert pathfinding AI.\n"
+            "COORDINATES: UP=(x-1,y), DOWN=(x+1,y), LEFT=(x,y-1), RIGHT=(x,y+1).\n\n"
+    
+            "LOGIC PROCESS:\n"
+            "1. TARGET CHECK: Is TARGET in the Known World map?\n\n"
+    
+            "2. IF TARGET IS KNOWN (Navigation Mode):\n"
+            "   - Identify direction towards TARGET.\n"
+            "   - If direct path is blocked by DANGER/WALL: Execute 'Sidestep'.\n"
+            "     * Blocked horizontally (Left/Right)? Move UP or DOWN.\n"
+            "     * Blocked vertically (Up/Down)? Move LEFT or RIGHT.\n"
+            "   - Only move AWAY (backtrack) if no other option exists.\n\n"
+    
+            "3. IF TARGET IS UNKNOWN (Exploration Mode):\n"
+            "   - Goal: Find new cells.\n"
+            "   - Prioritize UNEXPLORED safe cells.\n"
+            "   - Avoid VISITED cells if possible.\n\n"
+    
+            "4. SAFETY: NEVER move into DANGER or WALL.\n\n"
+    
+            "Return JSON with keys 'reasoning' and 'action'.\n"
+            "'action' values: 'UP', 'DOWN', 'LEFT', 'RIGHT'."
+                        ),
+        "use_warnings": False,
+        "use_reasoning": True
     }
-    # "new_new": {
-    #     "system": (
-    #         "You are an expert navigator AI for a grid.\n"
-    #         "AXIS DEFINITION: X is Vertical (UP/DOWN), Y is Horizontal (LEFT/RIGHT).\n"
-    #         "- UP decreases X (x-1). DOWN increases X (x+1).\n"
-    #         "- LEFT decreases Y (y-1). RIGHT increases Y (y+1).\n\n"
-    #
-    #         "DECISION PROCESS:\n"
-    #         "1. MODE SELECTION:\n"
-    #         "   - IF TARGET in Known World -> Set 'Goal' to TARGET coords.\n"
-    #         "   - ELSE -> Set 'Goal' to 'Explore'.\n\n"
-    #
-    #         "2. PATHFINDING LOGIC (If Goal is TARGET):\n"
-    #         "   - Calculate Delta: dx = Goal_x - Agent_x, dy = Goal_y - Agent_y.\n"
-    #         "   - Primary Moves (Priority order):\n"
-    #         "     * If |dx| > |dy|: Move Vertical (UP if dx<0, DOWN if dx>0).\n"
-    #         "     * If |dy| > |dx|: Move Horizontal (LEFT if dy<0, RIGHT if dy>0).\n"
-    #         "     * If |dx| == |dy|: Move Horizontal first.\n"
-    #         "   - SAFETY CHECK: If Primary Move leads to DANGER/WALL/INVALID:\n"
-    #         "     * Try Secondary Move (the other axis).\n"
-    #         "     * If blocked again, try remaining safe options.\n\n"
-    #
-    #         "3. EXPLORATION LOGIC (If Goal is Explore):\n"
-    #         "   - Check neighbors. Prioritize UNEXPLORED (not in Known World).\n"
-    #         "   - Avoid VISITED cells if possible.\n\n"
-    #
-    #         "4. GENERAL RULES:\n"
-    #         "   - NEVER move into DANGER or WALL.\n"
-    #         "   - NEVER move outside bounds (e.g., x=-1 is invalid).\n\n"
-    #
-    #         "Return JSON: {'reasoning': 'step-by-step thought', 'action': 'MOVE'}."
-    #     ),
-    #     "use_warnings": False,
-    #     "use_reasoning": False
-    # },
-    # "new": {
-    #     "system": (
-    #         "You are an expert pathfinding AI.\n"
-    #         "COORDINATES: UP=(x-1,y), DOWN=(x+1,y), LEFT=(x,y-1), RIGHT=(x,y+1).\n\n"
-    #
-    #         "LOGIC PROCESS:\n"
-    #         "1. TARGET CHECK: Is TARGET in the Known World map?\n\n"
-    #
-    #         "2. IF TARGET IS KNOWN (Navigation Mode):\n"
-    #         "   - Identify direction towards TARGET.\n"
-    #         "   - If direct path is blocked by DANGER/WALL: Execute 'Sidestep'.\n"
-    #         "     * Blocked horizontally (Left/Right)? Move UP or DOWN.\n"
-    #         "     * Blocked vertically (Up/Down)? Move LEFT or RIGHT.\n"
-    #         "   - Only move AWAY (backtrack) if no other option exists.\n\n"
-    #
-    #         "3. IF TARGET IS UNKNOWN (Exploration Mode):\n"
-    #         "   - Goal: Find new cells.\n"
-    #         "   - Prioritize UNEXPLORED safe cells.\n"
-    #         "   - Avoid VISITED cells if possible.\n\n"
-    #
-    #         "4. SAFETY: NEVER move into DANGER or WALL.\n\n"
-    #
-    #         "Return JSON with keys 'reasoning' and 'action'.\n"
-    #         "'action' values: 'UP', 'DOWN', 'LEFT', 'RIGHT'."
-    #                     ),
-    #     "use_warnings": False,
-    #     "use_reasoning": True
-    # }
 }
 
-# 2. Определяем 10 сценариев тестирования
+# 2. Определяем сценарии тестирования
 # Format: {"agent_pos": (x,y), "vision": "...", "memory": {...}, "expected": "действие или список действий"}
 TEST_SCENARIOS = [
     # --- БАЗОВЫЕ СЦЕНАРИИ (1-11) ---
@@ -259,7 +259,7 @@ TEST_SCENARIOS = [
         "expected": ["LEFT"]
     },
 
-    # --- НОВЫЕ СЛОЖНЕЙШИЕ СЦЕНАРИИ (22-31) ---
+    # --- СЛОЖНЕЙШИЕ СЦЕНАРИИ (22-31) ---
 
     {
         "id": 22, "name": "Zig-Zag Logic (Blocked Axis)",
